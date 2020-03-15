@@ -3,9 +3,6 @@ param (
     [string] $StorageAccountName
 )
 
-Write-Output $ResourceGroupName
-Write-Output $StorageAccountName
-
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
@@ -48,7 +45,7 @@ New-Item -Path $workingDirectory -ItemType Directory | Out-Null
 $blob = Get-AzStorageBlob -Blob $PoshZipFile -Container $zipContainer -Context $StorageContext -ErrorAction Ignore
 if ($blob) {
     Write-Output "We Have a blob, quick, extract it!"
-    Get-AzStorageBlobContent -Blob $PoshZipFile -Container $zipContainer -Destination $PoshZipPath -Context $StorageContext
+    Get-AzStorageBlobContent -Blob $PoshZipFile -Container $zipContainer -Destination $PoshZipPath -Context $StorageContext -Force
     Expand-Archive -Path $PoshZipPath -DestinationPath ".\" -Force
     Get-ChildItem -Recurse $env:POSHACME_HOME
 } else {
