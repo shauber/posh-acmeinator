@@ -1,5 +1,6 @@
 param (
-    [string] $AcmeContact = $global:AcmeContact,
+    [Parameter(Mandatory=$true)]
+    [string] $AcmeContact,
 
     [Parameter(Mandatory=$true)]
     [string] $CertificateNames,
@@ -17,7 +18,7 @@ if ($PSPrivateMetadata.JobId) {
         $servicePrincipalConnection=Get-AutomationConnection -Name $connectionName         
     
         "Logging in to Azure..."
-        Add-AzAccount `
+        Connect-AzAccount `
             -ServicePrincipal `
             -TenantId $servicePrincipalConnection.TenantId `
             -ApplicationId $servicePrincipalConnection.ApplicationId `
@@ -33,19 +34,6 @@ if ($PSPrivateMetadata.JobId) {
             throw $_.Exception
         }
     }
-
-    if ([string]::IsNullOrEmpty($AcmeContact)) { 
-        $AcmeContact = Get-AutomationVariable -Name DefaultAcmeContact
-    }
-
-    ## if we weren't called with an explicit value for AcmeDirectory allow AZ Automation to override it
-    if (-not $PSBoundParameters.ContainsKey('AcmeDirectory')) {
-        $AzDefaultAcmeDirectory = Get-AutomationVariable -Name $AzDefaultAcmeDirectory
-        if (-not [string]::IsNullOrEmpty($AzDefaultAcmeDirectory)) {
-            $AcmeDirectory = $AzDefaultAcmeDirectory 
-        }
-    }
-
 }
 
 #Supress progress messages. Azure DevOps doesn't format them correctly (used by New-PACertificate)
@@ -54,9 +42,11 @@ $global:ProgressPreference = 'SilentlyContinue'
 #Split certificate names by comma or semi-colin
 $CertificateNamesArr = $CertificateNames.Replace(',',';') -split ';' | ForEach-Object -Process { $_.Trim() }
 
+./Restore-PoshHome.ps1
+
 #make sure we have a Posh-ACME working directory
 if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
-	exit 1
+	throw "env var POSHACME_HOME not set!"
 }
 
 Import-Module Posh-ACME -Force
@@ -93,13 +83,8 @@ $paPluginArgs = @{
 
 New-PACertificate -Domain $CertificateNamesArr -DnsPlugin Azure -PluginArgs $paPluginArgs | ForEach-Object {
     $cert = $_
-    Write-Output $cert
-    if ($cert.MainDomain -eq 'example.com') {
-        # deploy for example.com
-    } elseif ($cert.MainDomain -eq 'example.net') {
-        # deploy for example.com
-    } else {
-        # deploy for everything else
-    }
+    Write-Output "Got a certificate for $($cert.AllSANs[0]), saving to KeyVault"
+    ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0]
 }
 
+./Save-PoshHome.ps1
