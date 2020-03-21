@@ -1,7 +1,11 @@
 param (
-    [string] $ResourceGroupName,
-    [string] $StorageAccountName
+    [string] $ResourceGroupName = $global:ResourceGroupName,
+    [string] $StorageAccountName = $global:StorageAccountName
 )
+
+if ( -not $env:TEMP) { # This seems to be set to something sane on Windows, NIX it is
+    $env:TEMP = "/tmp"
+}
 
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
@@ -39,7 +43,7 @@ $zipContainer = "automation"
 
 #Create working directory
 $workingDirectory = Join-Path -Path "." -ChildPath "pa"
-New-Item -Path $workingDirectory -ItemType Directory | Out-Null
+New-Item -Path $workingDirectory -ItemType Directory -Force| Out-Null
 
 #Sync contents of storage container to working directory
 $blob = Get-AzStorageBlob -Blob $PoshZipFile -Container $zipContainer -Context $StorageContext -ErrorAction Ignore
