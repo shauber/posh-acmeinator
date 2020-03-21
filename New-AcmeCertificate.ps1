@@ -1,8 +1,14 @@
 param (
-    [string] $AcmeContact,
-    [string] $CertificateNames
+    [string] $AcmeContact = $global:AcmeContact,
+
+    [Parameter(Mandatory=$true)]
+    [string] $CertificateNames,
+
+    [string] $AcmeDirectory = "LE_STAGE" # always default to Let's Encrypt stage
 )
 
+
+## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
@@ -27,10 +33,20 @@ if ($PSPrivateMetadata.JobId) {
             throw $_.Exception
         }
     }
+
+    if ([string]::IsNullOrEmpty($AcmeContact)) { 
+        $AcmeContact = Get-AutomationVariable -Name DefaultAcmeContact
+    }
+
+    ## if we weren't called with an explicit value for AcmeDirectory allow AZ Automation to override it
+    if (-not $PSBoundParameters.ContainsKey('AcmeDirectory')) {
+        $AzDefaultAcmeDirectory = Get-AutomationVariable -Name $AzDefaultAcmeDirectory
+        if (-not [string]::IsNullOrEmpty($AzDefaultAcmeDirectory)) {
+            $AcmeDirectory = $AzDefaultAcmeDirectory 
+        }
+    }
+
 }
-
-
-$AcmeDirectory = "LE_STAGE" # "LE_PROD"
 
 #Supress progress messages. Azure DevOps doesn't format them correctly (used by New-PACertificate)
 $global:ProgressPreference = 'SilentlyContinue'
@@ -50,7 +66,11 @@ Set-PAServer -DirectoryUrl $AcmeDirectory
 
 #Configure Posh-ACME account
 $account = Get-PAAccount
+
 if (-not $account) {
+    if ([string]::IsNullOrEmpty($AcmeContact)) {
+        throw "AcmeContact not passed in, not set as a global, and no DefaultAcmeContact set in AZ Automation (or not running in AZ Automation)."
+    }
     # New account
     $account = New-PAAccount -Contact $AcmeContact -AcceptTOS
 }
@@ -74,12 +94,12 @@ $paPluginArgs = @{
 New-PACertificate -Domain $CertificateNamesArr -DnsPlugin Azure -PluginArgs $paPluginArgs | ForEach-Object {
     $cert = $_
     Write-Output $cert
-#    if ($cert.MainDomain -eq 'example.com') {
-#        # deploy for example.com
-#    } elseif ($cert.MainDomain -eq 'example.net') {
-#        # deploy for example.com
-#    } else {
-#        # deploy for everything else
-#    }
+    if ($cert.MainDomain -eq 'example.com') {
+        # deploy for example.com
+    } elseif ($cert.MainDomain -eq 'example.net') {
+        # deploy for example.com
+    } else {
+        # deploy for everything else
+    }
 }
 
