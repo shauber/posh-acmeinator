@@ -1,8 +1,7 @@
-param (
-    [string] $ResourceGroupName,
-    [string] $StorageAccountName
-)
+$ResourceGroupName = Get-AutomationVariable -Name 'ResourceGroupName'
+$StorageAccountName = Get-AutomationVariable -Name 'StorageAccountName'
 
+## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
@@ -29,8 +28,6 @@ if ($PSPrivateMetadata.JobId) {
     }
 }
 
-Write-Output $StorageAccountName
-Write-Output $env:POSHACME_HOME
 #make sure we have a Posh-ACME working directory
 if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
 	exit 1
