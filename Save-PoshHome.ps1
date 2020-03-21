@@ -1,6 +1,3 @@
-$ResourceGroupName = Get-AutomationVariable -Name 'ResourceGroupName'
-$StorageAccountName = Get-AutomationVariable -Name 'StorageAccountName'
-
 ## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
@@ -28,12 +25,13 @@ if ($PSPrivateMetadata.JobId) {
     }
 }
 
+$ResourceGroupName = Get-AutomationVariable -Name 'ResourceGroupName'
+$StorageAccountName = Get-AutomationVariable -Name 'StorageAccountName'
+
 #make sure we have a Posh-ACME working directory
 if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
 	exit 1
 }
-
-
 
 #setup our storage context and related vars
 $storageKey = (Get-AzStorageAccountKey -ResourceGroupName "$ResourceGroupName" -AccountName "$StorageAccountName")[0].Value
@@ -45,4 +43,3 @@ $zipContainer = "automation"
 #Sync working directory back to storage container
 Compress-Archive -Path $env:POSHACME_HOME -DestinationPath $PoshZipPath -Force
 Set-AzStorageBlobContent -Container $zipContainer -File $PoshZipPath -Blob $PoshZipFile -Context $StorageContext -Force
-
