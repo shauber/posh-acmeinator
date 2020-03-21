@@ -1,12 +1,11 @@
-param (
-    [string] $ResourceGroupName = $global:ResourceGroupName,
-    [string] $StorageAccountName = $global:StorageAccountName
-)
+$ResourceGroupName = Get-AutomationVariable -Name 'ResourceGroupName'
+$StorageAccountName = Get-AutomationVariable -Name 'StorageAccountName'
 
-if ( -not $env:TEMP) { # This seems to be set to something sane on Windows, NIX it is
+if ([string]::IsNullOrEmpty($env:TEMP)) { # This seems to be set to something sane on Windows, not on POSIX systems
     $env:TEMP = "/tmp"
 }
 
+## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
