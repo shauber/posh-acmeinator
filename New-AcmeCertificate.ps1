@@ -84,7 +84,7 @@ $paPluginArgs = @{
 New-PACertificate -Domain $CertificateNamesArr -DnsPlugin Azure -PluginArgs $paPluginArgs | ForEach-Object {
     $cert = $_
     Write-Output "Got a certificate for $($cert.AllSANs[0]), saving to KeyVault"
-    ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0]
+    ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0] -AcmeDirectory $AcmeDirectory
 }
 
 ./Save-PoshHome.ps1
