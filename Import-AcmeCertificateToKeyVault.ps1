@@ -1,8 +1,11 @@
 param (
+    [Parameter(Mandatory=$true)]
     [string] $CertificateNames,
-    [string] $KeyVaultResourceId
+
+    [string] $AcmeDirectory = "LE_STAGE" # "LE_PROD"
 )
 
+## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
@@ -29,7 +32,7 @@ if ($PSPrivateMetadata.JobId) {
     }
 }
 
-$AcmeDirectory = "LE_STAGE" # "LE_PROD"
+$KeyVaultResourceId = Get-AutomationVariable -Name 'KeyVaultResourceId'
 
 # Split certificate names by comma or semi-colon
 $certificateName = $CertificateNames.Replace(',', ';') -split ';' | ForEach-Object -Process { $_.Trim() } | Select-Object -First 1
