@@ -39,6 +39,16 @@ resource "azurerm_automation_account" "cron" {
   name                = "marvin"
 }
 
+resource "azurerm_automation_module" "AzAccounts" {
+  name                    = "Az.Accounts"
+  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  automation_account_name = azurerm_automation_account.cron.name
+
+  module_link {
+    uri = "https://www.powershellgallery.com/api/v2/package/Az.Accounts/1.7.3"
+  }
+}
+
 resource "azurerm_automation_variable_string" "AcmeDirectory" {
   name                    = "AcmeDirectory"
   resource_group_name     = data.azurerm_resource_group.automation-rg.name
