@@ -36,9 +36,9 @@ if ($PSPrivateMetadata.JobId) {
 #setup our storage context and related vars
 $storageKey = (Get-AzStorageAccountKey -ResourceGroupName "$ResourceGroupName" -AccountName "$StorageAccountName")[0].Value
 $StorageContext = New-AzStorageContext -StorageAccountName "$StorageAccountName" -StorageAccountKey $storageKey
-$PoshZipFile = "posh-acme.zip"
+$PoshZipFile = Get-AutomationVariable -Name 'PoshZipName'
 $PoshZipPath = "$($env:TEMP)/$PoshZipFile"
-$zipContainer = "automation"
+$zipContainer = Get-AutomationVariable -Name 'StorageContainerName'
 
 #Create working directory
 $workingDirectory = Join-Path -Path "." -ChildPath "pa"

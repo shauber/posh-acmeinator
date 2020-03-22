@@ -9,8 +9,13 @@ data "azurerm_resource_group" "automation-rg" {
 }
 
 data "azurerm_storage_account" "storage" {
-  name                = "automationstorage78"
   resource_group_name = data.azurerm_resource_group.automation-rg.name
+  name                = "automationstorage78"
+}
+
+data "azurerm_storage_container" "container" {
+    storage_account_name = data.azurerm_storage_account.storage.name
+    name                 = "automation"
 }
 
 data "azurerm_key_vault" "kv" {
@@ -42,6 +47,20 @@ resource "azurerm_automation_variable_string" "KVVar" {
   resource_group_name     = data.azurerm_resource_group.automation-rg.name
   automation_account_name = data.azurerm_automation_account.acmeinator.name
   value                   = data.azurerm_key_vault.kv.id
+}
+
+resource "azurerm_automation_variable_string" "ContainerVar" {
+  name                    = "StorageContainerName"
+  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  automation_account_name = data.azurerm_automation_account.acmeinator.name
+  value                   = data.azurerm_storage_container.container.name
+}
+
+resource "azurerm_automation_variable_string" "PoshZipVar" {
+  name                    = "PoshZipName"
+  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  automation_account_name = data.azurerm_automation_account.acmeinator.name
+  value                   = "posh-acme.zip"
 }
 
 data "local_file" "NewCert" {
