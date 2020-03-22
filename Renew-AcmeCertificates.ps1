@@ -1,6 +1,8 @@
 param (
+    $AcmeDirectory = "LE_STAGE" # "LE_PROD"
 )
 
+## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {
     $connectionName = "AzureRunAsConnection"
     try
@@ -27,7 +29,6 @@ if ($PSPrivateMetadata.JobId) {
     }
 }
 
-$AcmeDirectory = "LE_STAGE" # "LE_PROD"
 
 #Supress progress messages. Azure DevOps doesn't format them correctly (used by New-PACertificate)
 $global:ProgressPreference = 'SilentlyContinue'
@@ -35,6 +36,8 @@ $global:ProgressPreference = 'SilentlyContinue'
 if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
 	exit 1
 }
+
+./Restore-PoshHome.ps1
 
 Import-Module Posh-ACME -Force
 
@@ -45,7 +48,7 @@ Set-PAServer -DirectoryUrl $AcmeDirectory
 $account = Get-PAAccount
 if (-not $account) {
     # New account
-    exit 1
+    throw "No Let's Encrypt accounts found"
 }
 
 #Acquire access token for Azure (as we want to leverage the existing connection)
@@ -60,15 +63,11 @@ $paPluginArgs = @{
     AZAccessToken    = $azureAccessToken;
 }
 
-Submit-Renewal -AllOrders -PluginArgs $paPluginArgs | ForEach-Object {
+## Maybe switch this to -AllOrders if it takes too long and split 
+## into per account jobs?
+Submit-Renewal -AllAccounts -PluginArgs $paPluginArgs -Force| ForEach-Object {
     $cert = $_
-    Write-Output $cert
-#    if ($cert.MainDomain -eq 'example.com') {
-#        # deploy for example.com
-#    } elseif ($cert.MainDomain -eq 'example.net') {
-#        # deploy for example.com
-#    } else {
-#        # deploy for everything else
-#    }
+    Write-Output "Got a certificate for $($cert.AllSANs[0]), saving to KeyVault"
+    ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0] -AcmeDirectory $AcmeDirectory
 }
 
