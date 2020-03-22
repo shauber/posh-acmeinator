@@ -1,2 +1,4 @@
 pa
 set-envs.psm1
+.terraform
+*tfstate*
