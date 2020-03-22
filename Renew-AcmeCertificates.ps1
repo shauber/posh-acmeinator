@@ -77,3 +77,4 @@ Submit-Renewal -AllAccounts -PluginArgs $paPluginArgs -Force| ForEach-Object {
     ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0] -AcmeDirectory $AcmeDirectory
 }
 
+./Save-PoshHome.ps1

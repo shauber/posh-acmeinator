@@ -70,6 +70,26 @@ resource "azurerm_automation_variable_string" "PoshZipVar" {
   value                   = "posh-acme.zip"
 }
 
+data "local_file" "ImportCert" {
+  filename = "${path.module}/Import-AcmeCertificateToKeyValut.ps1"
+}
+
+resource "azurerm_automation_runbook" "NewCert" {
+  name                    = "Import-AcmeCertificateToKeyValut"
+  location                = data.azurerm_resource_group.automation-rg.location
+  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  automation_account_name = data.azurerm_automation_account.acmeinator.name
+  log_verbose             = "true"
+  log_progress            = "true"
+  runbook_type            = "PowerShell"
+
+  publish_content_link {
+    uri = "https://example.com"
+  }
+
+  content = data.local_file.ImportCert.content
+}
+
 data "local_file" "NewCert" {
   filename = "${path.module}/New-AcmeCertificate.ps1"
 }
