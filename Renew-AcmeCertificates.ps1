@@ -1,6 +1,12 @@
 param (
-    $AcmeDirectory = "LE_STAGE" # "LE_PROD"
+    [string] $AcmeDirectory = "LE_STAGE" # "LE_PROD"
 )
+
+## Allow the AzAutomation variable override the default, but not if it's passed in
+$AutomationAcmeDirectory = Get-AutomationVariable -Name 'AcmeDirectory'
+if (-not $PSBoundParameters.ContainsKey('AcmeDirectory') -and -not [string]::IsNullOrEmpty($AutomationAcmeDirectory)) {
+    $AcmeDirectory = $AutomationAcmeDirectory
+}
 
 ## All of this is Azure Automation specific initialization
 if ($PSPrivateMetadata.JobId) {

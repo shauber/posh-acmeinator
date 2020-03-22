@@ -28,6 +28,13 @@ data "azurerm_automation_account" "acmeinator" {
   name                = "acmeinator"
 }
 
+resource "azurerm_automation_variable_string" "AcmeDirectory" {
+  name                    = "AcmeDirectory"
+  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  automation_account_name = data.azurerm_automation_account.acmeinator.name
+  value                   = "LE_STAGE"
+}
+
 resource "azurerm_automation_variable_string" "RGVar" {
   name                    = "ResourceGroupName"
   resource_group_name     = data.azurerm_resource_group.automation-rg.name
