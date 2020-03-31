@@ -3,7 +3,7 @@ provider "azurerm" {
   version = "~> 2.2.0"
   features {
     key_vault {
-      purge_soft_delete_on_destroy = false
+      purge_soft_delete_on_destroy = true
     }
   }
 }
@@ -27,9 +27,21 @@ data "azurerm_storage_container" "container" {
     # container_access_type = "private"
 }
 
-data "azurerm_key_vault" "kv" {
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "kv" {
   resource_group_name = data.azurerm_resource_group.automation-rg.name
-  name                = "spc-automation-kv"
+  name                      = "marvin-kv"
+  location                  = data.azurerm_resource_group.automation-rg.location
+  sku_name                  = "standard"
+  tenant_id                 = data.azurerm_client_config.current.tenant_id
+  soft_delete_enabled       = false
+  purge_protection_enabled  = false
+
+  network_acls {
+    default_action = "Deny"
+    bypass         = "AzureServices"
+  }
 }
 
 resource "azurerm_automation_account" "cron" {
@@ -104,7 +116,7 @@ resource "azurerm_automation_variable_string" "KVVar" {
   name                    = "KeyVaultResourceId"
   resource_group_name     = data.azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
-  value                   = data.azurerm_key_vault.kv.id
+  value                   = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_automation_variable_string" "ContainerVar" {
