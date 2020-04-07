@@ -1,6 +1,6 @@
 provider "azurerm" {
   # whilst the `version` attribute is optional, we recommend pinning to a given version of the Provider
-  version = "~> 2.2.0"
+  version = "~> 2.2"
   features {
     key_vault {
       purge_soft_delete_on_destroy = true
@@ -8,31 +8,47 @@ provider "azurerm" {
   }
 }
 
-data "azurerm_resource_group" "automation-rg" {
-  name     = "automation-rg"
+variable "resource-group-name" {
+  type = string
 }
 
-data "azurerm_storage_account" "storage" {
-  resource_group_name = data.azurerm_resource_group.automation-rg.name
-  name                     = "automationstorage78"
-  # location                 = azurerm_resource_group.automation-rg.location
-  # account_tier             = "Standard"
-  # account_kind             = "StandardV2"
-  # account_replication_type = "LRS"
+variable "resource-group-location" {
+  type = string
+  default = "East US"
 }
 
-data "azurerm_storage_container" "container" {
-    storage_account_name = data.azurerm_storage_account.storage.name
+resource "azurerm_resource_group" "automation-rg" {
+  name     = var.resource-group-name
+  location = var.resource-group-location
+}
+
+resource "random_string" "suffix" {
+  length = 14
+  upper = false
+  special = false
+}
+
+resource "azurerm_storage_account" "storage" {
+  resource_group_name = azurerm_resource_group.automation-rg.name
+  name                     = "marvin0sa0${random_string.suffix.result}"
+  location                 = azurerm_resource_group.automation-rg.location
+  account_tier             = "Standard"
+  account_kind             = "StorageV2"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_storage_container" "container" {
+    storage_account_name = azurerm_storage_account.storage.name
     name                 = "automation"
-    # container_access_type = "private"
+    container_access_type = "private"
 }
 
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "kv" {
-  resource_group_name = data.azurerm_resource_group.automation-rg.name
-  name                      = "marvin-kv"
-  location                  = data.azurerm_resource_group.automation-rg.location
+  resource_group_name = azurerm_resource_group.automation-rg.name
+  name                      = "marvin-kv-${random_string.suffix.result}"
+  location                  =  azurerm_resource_group.automation-rg.location
   sku_name                  = "standard"
   tenant_id                 = data.azurerm_client_config.current.tenant_id
   soft_delete_enabled       = false
@@ -45,15 +61,15 @@ resource "azurerm_key_vault" "kv" {
 }
 
 resource "azurerm_automation_account" "cron" {
-  resource_group_name = data.azurerm_resource_group.automation-rg.name
-  location            = data.azurerm_resource_group.automation-rg.location
+  resource_group_name = azurerm_resource_group.automation-rg.name
+  location            = azurerm_resource_group.automation-rg.location
   sku_name            = "Basic"
-  name                = "marvin"
+  name                = "marvin-aa-${random_string.suffix.result}"
 }
 
 resource "azurerm_automation_module" "AzAccounts" {
   name                    = "Az.Accounts"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
 
   module_link {
@@ -63,7 +79,7 @@ resource "azurerm_automation_module" "AzAccounts" {
 
 resource "azurerm_automation_module" "AzStorage" {
   name                    = "Az.Storage"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
 
   module_link {
@@ -73,7 +89,7 @@ resource "azurerm_automation_module" "AzStorage" {
 
 resource "azurerm_automation_module" "AzKeyVault" {
   name                    = "Az.KeyVault"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
 
   module_link {
@@ -81,9 +97,19 @@ resource "azurerm_automation_module" "AzKeyVault" {
   }
 }
 
+resource "azurerm_automation_module" "AzResources" {
+  name                    = "Az.Resources"
+  resource_group_name     = azurerm_resource_group.automation-rg.name
+  automation_account_name = azurerm_automation_account.cron.name
+
+  module_link {
+    uri = "https://www.powershellgallery.com/api/v2/package/Az.Resources/1.12.0"
+  }
+}
+
 resource "azurerm_automation_module" "Posh-ACME" {
   name                    = "Posh-ACME"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
 
   module_link {
@@ -93,42 +119,42 @@ resource "azurerm_automation_module" "Posh-ACME" {
 
 resource "azurerm_automation_variable_string" "AcmeDirectory" {
   name                    = "AcmeDirectory"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   value                   = "LE_STAGE"
 }
 
 resource "azurerm_automation_variable_string" "RGVar" {
   name                    = "ResourceGroupName"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
-  value                   = data.azurerm_resource_group.automation-rg.name
+  value                   = azurerm_resource_group.automation-rg.name
 }
 
 resource "azurerm_automation_variable_string" "SAVar" {
   name                    = "StorageAccountName"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
-  value                   = data.azurerm_storage_account.storage.name
+  value                   = azurerm_storage_account.storage.name
 }
 
 resource "azurerm_automation_variable_string" "KVVar" {
   name                    = "KeyVaultResourceId"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   value                   = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_automation_variable_string" "ContainerVar" {
   name                    = "StorageContainerName"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
-  value                   = data.azurerm_storage_container.container.name
+  value                   = azurerm_storage_container.container.name
 }
 
 resource "azurerm_automation_variable_string" "PoshZipVar" {
   name                    = "PoshZipName"
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   value                   = "posh-acme.zip"
 }
@@ -138,9 +164,9 @@ data "local_file" "ImportCert" {
 }
 
 resource "azurerm_automation_runbook" "ImportCert" {
-  name                    = "Import-AcmeCertificateToKeyValut"
-  location                = data.azurerm_resource_group.automation-rg.location
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  name                    = "Import-AcmeCertificateToKeyVault"
+  location                = azurerm_resource_group.automation-rg.location
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   log_verbose             = "true"
   log_progress            = "true"
@@ -159,8 +185,8 @@ data "local_file" "NewCert" {
 
 resource "azurerm_automation_runbook" "NewCert" {
   name                    = "New-AcmeCertificate"
-  location                = data.azurerm_resource_group.automation-rg.location
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  location                = azurerm_resource_group.automation-rg.location
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   log_verbose             = "true"
   log_progress            = "true"
@@ -179,8 +205,8 @@ data "local_file" "RenewCerts" {
 
 resource "azurerm_automation_runbook" "RenewCerts" {
   name                    = "Renew-AcmeCertificates"
-  location                = data.azurerm_resource_group.automation-rg.location
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  location                = azurerm_resource_group.automation-rg.location
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   log_verbose             = "true"
   log_progress            = "true"
@@ -199,8 +225,8 @@ data "local_file" "RestorePosh" {
 
 resource "azurerm_automation_runbook" "RestorePosh" {
   name                    = "Restore-PoshHome"
-  location                = data.azurerm_resource_group.automation-rg.location
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  location                = azurerm_resource_group.automation-rg.location
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   log_verbose             = "true"
   log_progress            = "true"
@@ -219,8 +245,8 @@ data "local_file" "SavePosh" {
 
 resource "azurerm_automation_runbook" "SavePosh" {
   name                    = "Save-PoshHome"
-  location                = data.azurerm_resource_group.automation-rg.location
-  resource_group_name     = data.azurerm_resource_group.automation-rg.name
+  location                = azurerm_resource_group.automation-rg.location
+  resource_group_name     = azurerm_resource_group.automation-rg.name
   automation_account_name = azurerm_automation_account.cron.name
   log_verbose             = "true"
   log_progress            = "true"
