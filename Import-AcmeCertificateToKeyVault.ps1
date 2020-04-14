@@ -42,6 +42,7 @@ $certificateName = $certificateName.Replace('*', '!')
 
 #make sure we have a Posh-ACME working directory
 if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
+    Write-Output "No Posh-ACME HOME found"
 	exit 1
 }
 
@@ -75,22 +76,20 @@ $pfxFilePath = Join-Path -Path $orderDirectoryPath -ChildPath "fullchain.pfx"
 # If we have a order and certificate available
 if ((Test-Path -Path $orderDirectoryPath) -and (Test-Path -Path $orderDataPath) -and (Test-Path -Path $pfxFilePath)) {
     # Load order data
+    Write-Output "Getting certificate order info for $certificateName"
     $orderData = Get-Content -Path $orderDataPath -Raw | ConvertFrom-Json
 
+    Write-Output "Getting certificate data for $certificateName"
     $pfxFilePath
     $orderData.PfxPass
     
-    # Get the current certificate from key vault (if any)
     $azureKeyVaultCertificateName = $certificateName.Replace(".", "-").Replace("!", "wildcard")
     $keyVaultResource = Get-AzResource -ResourceId $KeyVaultResourceId
 
-    # If we have a different certificate, import it
+    Write-Output "Importing certificate for $certificateName to Key Vault"
     Import-AzKeyVaultCertificate -VaultName $keyVaultResource.Name `
     				 -Name $azureKeyVaultCertificateName `
 				 -FilePath $pfxFilePath `
 				 -Password (ConvertTo-SecureString -String $orderData.PfxPass -AsPlainText -Force) | Out-Null
 }
-
-
-
 

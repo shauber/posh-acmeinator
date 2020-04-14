@@ -43,11 +43,12 @@ if ($PSPrivateMetadata.JobId) {
 }
 
 #Supress progress messages. Azure DevOps doesn't format them correctly (used by New-PACertificate)
-$global:ProgressPreference = 'SilentlyContinue'
+#$global:ProgressPreference = 'SilentlyContinue'
 
 #Split certificate names by comma or semi-colin
 $CertificateNamesArr = $CertificateNames.Replace(',',';') -split ';' | ForEach-Object -Process { $_.Trim() }
 
+Write-Output "Restoring Posh-ACME HOME"
 ./Restore-PoshHome.ps1
 
 #make sure we have a Posh-ACME working directory
@@ -58,9 +59,11 @@ if ([string]::IsNullOrWhiteSpace($env:POSHACME_HOME)) {
 Import-Module Posh-ACME -Force
 
 #Configure Posh-ACME server
+Write-Output "Configuring POSH for $AcmeDirectory ACME Directory."
 Set-PAServer -DirectoryUrl $AcmeDirectory
 
 #Configure Posh-ACME account
+Write-Output "Configuring Posh-ACME account."
 $account = Get-PAAccount
 
 if (-not $account) {
@@ -76,6 +79,7 @@ elseif ($account.contact -ne "mailto:$AcmeContact") {
 }
 
 #Acquire access token for Azure (as we want to leverage the existing connection)
+Write-Output "Get Azoure access token for DNS challenges."
 $azureContext = Get-AzContext
 $currentAzureProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile;
 $currentAzureProfileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($currentAzureProfile);
@@ -87,10 +91,12 @@ $paPluginArgs = @{
     AZAccessToken    = $azureAccessToken;
 }
 
+Write-Output "Requesting certificates for: $CertificateNames"
 New-PACertificate -Domain $CertificateNamesArr -DnsPlugin Azure -PluginArgs $paPluginArgs | ForEach-Object {
     $cert = $_
     Write-Output "Got a certificate for $($cert.AllSANs[0]), saving to KeyVault"
     ./Import-AcmeCertificateToKeyVault.ps1 -CertificateNames $cert.AllSANs[0] -AcmeDirectory $AcmeDirectory
 }
 
+Write-Output "Saving Posh-Acme HOME"
 ./Save-PoshHome.ps1
